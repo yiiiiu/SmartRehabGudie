@@ -1,3 +1,2 @@
 ultralytics==8.2.5
 pyqt5
-112
