@@ -76,7 +76,6 @@ class VideoThread(QThread):
         super().__init__()
         self.monitor = pose_monitor.PoseMonitor(streaming=True)
         self.standard_pose, self.srt_pose, self.end_pose = PoseMonitor.load_standard_pose("baduanjin", "1")
-        self.count = 0
         self.FPS = 0
 
     def run(self):
@@ -86,14 +85,23 @@ class VideoThread(QThread):
         # height = 960
         # cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-
+        count = 0
+        srt_count = 0
+        w_count = 0
         while True:
             self.start_time = time.time()
             ret, frame = cap.read()
             if ret:
+                w_count += 1
                 frame = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
                 end_time2 = time.time()
-                frame = self.monitor.user_streaming_process(frame, self.standard_pose, self.srt_pose, self.end_pose, self.count, self.start_time)
+                frame, count, srt_count = self.monitor.user_streaming_process(frame, self.standard_pose, self.srt_pose, self.end_pose, count, srt_count, self.start_time)
+                if w_count == 10:
+                    self.monitor.speak_async('1')
+                if count == 1:
+                    self.monitor.speak_async('5-1')
+                elif count == 2:
+                    self.monitor.speak_async('5-2')
 
                 self.change_pixmap_signal.emit(frame)
 
