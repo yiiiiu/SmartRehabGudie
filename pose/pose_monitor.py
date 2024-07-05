@@ -284,7 +284,7 @@ class PoseMonitor:
             '5-2': 'Flow5-2.mp3',
             '6': 'Flow6.mp3'
         }
-        audio_file_path = f"./pose/audio/{audio_dic[number]}"  # 根据音频字典生成或指定录音文件路径
+        audio_file_path = f"./audio/{audio_dic[number]}"  # 根据音频字典生成或指定录音文件路径
         audio_thread = threading.Thread(target=self.play_audio, args=(audio_file_path,))
         audio_thread.start()
         # engine = pyttsx3.init()
@@ -370,7 +370,7 @@ class PoseMonitor:
             if srt_sim > 0.78:
                 srt_count = 1
             end_sim_dic, end_sim = tool.keypoint2similarity2(keypoint, end_pose)
-            if end_sim > 0.78 and srt_count == 1:
+            if end_sim > 0.58 and srt_count == 1:
                 srt_count = 0
                 count += 1
 
@@ -569,10 +569,12 @@ class PoseMonitor:
         :param color: 颜色
         :return:
         """
+        font_path = r'.\font\SimHei.ttf' 
+        abs_font_path = os.path.abspath(font_path)
         # 图像从OpenCV格式转换成PIL格式
         img_PIL = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         # 字体包
-        font = ImageFont.truetype(r'E:\Users\13194\Desktop\Training\git_repository\SmartRehabGudie-2\SimHei.ttf', 40)
+        font = ImageFont.truetype(abs_font_path, 40)
         # 需要先把输出的中文字符转换成Unicode编码形式
         if not isinstance(text, str):
             text = str.decode('utf8')
