@@ -197,7 +197,7 @@ class PoseMonitor:
                 frame = self.chinese_pic(frame, order, (50, 200), (255, 0, 255))
 
                 # 异步播放语音
-                speech_thread = threading.Thread(target=self.speak_async, args=(order,))
+                speech_thread = threading.Thread(target=self.speak_async, args=('0',order,))
                 speech_thread.start()
 
                 # frame = cv2.putText(frame, order, (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
@@ -270,11 +270,21 @@ class PoseMonitor:
         while pygame.mixer.music.get_busy():  # 等待音频播放完毕
             pygame.time.Clock().tick(10)
 
-    def speak_async(self, order):
+    def speak_async(self, number, order=None):
         """
         异步语音播放函数
         """
-        audio_file_path = "./videos/monitor.mp3"  # 根据text生成或指定录音文件路径
+        audio_dic = {
+            '0': 'Flow0.mp3',
+            '1': 'Flow1.mp3',
+            '2': 'Flow2.mp3',
+            '3': 'Flow3.mp3',
+            '4': 'Flow4.mp3',
+            '5-1': 'Flow5-1.mp3',
+            '5-2': 'Flow5-2.mp3',
+            '6': 'Flow6.mp3'
+        }
+        audio_file_path = f"./audio/{audio_dic[number]}"  # 根据音频字典生成或指定录音文件路径
         audio_thread = threading.Thread(target=self.play_audio, args=(audio_file_path,))
         audio_thread.start()
         # engine = pyttsx3.init()
@@ -282,7 +292,7 @@ class PoseMonitor:
 
     # engine.runAndWait()
 
-    def user_streaming_process(self, frame, standard_pose, srt_pose, end_pose, count, start_time):
+    def user_streaming_process(self, frame, standard_pose, srt_pose, end_pose, count, srt_count, start_time):
 
         # 设置帧率为30帧
         # cap.set(cv2.CAP_PROP_FPS, 30)
@@ -298,11 +308,10 @@ class PoseMonitor:
         #     continue
 
         # 提取用户姿态关键点
-        srt_count = 0
         keypoint = self.frame2keypoint(frame)
         if len(keypoint) == 0:
             print('未检测到用户')
-            return frame
+            return frame, count, srt_count
             # continue
         # 画出用户姿态
         frame, missing = self.process_draw_keypoint(keypoint, frame)
@@ -325,7 +334,7 @@ class PoseMonitor:
         # 找到与用户姿态相似度最大的一帧标准姿态
         sim_ = max(sim_list)
         # 如果最大相似度小于0.96, 则纠正用户姿态
-        if sim_ < 0.96 and missing == 0:
+        if sim_ < 0.76 and missing == 0:
             sim_max_index = sim_list.index(sim_)  # 拿到最大相似度的索引
             max_sim_dic = sim_dic_list[sim_max_index]  # 通过索引拿到各个关节的相似度字典
             max_sim_pose = standard_pose[sim_max_index]  # 通过索引拿到相似度最大一帧的标准姿态关键点
@@ -345,7 +354,7 @@ class PoseMonitor:
                 order += f'{self.correct_pose(keypoint, max_sim_pose, end_kpt_id1, sim_key)}, '
             order = order.strip(', ')
 
-            speech_thread = threading.Thread(target=self.speak_async, args=(order,))
+            speech_thread = threading.Thread(target=self.speak_async, args=('0',order,))
             speech_thread.start()
 
             # frame = cv2.putText(frame, order, (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 255), 2)
@@ -358,17 +367,17 @@ class PoseMonitor:
         # 使用标准起始动作和结束动作为用户动作计数
         if srt_pose is not None and end_pose is not None:
             srt_sim_dic, srt_sim = tool.keypoint2similarity2(keypoint, srt_pose)
-            if srt_sim > 0.98:
+            if srt_sim > 0.78:
                 srt_count = 1
             end_sim_dic, end_sim = tool.keypoint2similarity2(keypoint, end_pose)
-            if end_sim > 0.98 and srt_count == 1:
+            if end_sim > 0.58 and srt_count == 1:
                 srt_count = 0
                 count += 1
 
                 # 将标准姿态关键点与用户姿态关键点以左肩重合，并标准化大小
                 end_pose_ = tool.map_keypoints(keypoint, end_pose)
                 # 遍历各个关节的相似度字典，找到相似度小于0.96的关节名称
-                result_ = [key for key, value in end_sim_dic.items() if value < 0.96]
+                result_ = [key for key, value in end_sim_dic.items() if value < 0.76]
                 if result_:
                     for sim_key in result_:
                         # 用关节名称找到关节id
@@ -385,6 +394,7 @@ class PoseMonitor:
 
                 cv2.imwrite('frame_image.jpg', frame_)
             frame = self.chinese_pic(frame, f'完成数量: {count}', (50, 100), (0, 255, 0))
+            frame = self.chinese_pic(frame, f'起始动作: {srt_count}', (50, 200), (0, 255, 0))
 
             # frame = cv2.putText(frame, f'count: {count}', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
         # 记录该帧处理完毕的时间
@@ -398,7 +408,7 @@ class PoseMonitor:
         frame = self.chinese_pic(frame, FPS_string, (50, 150), (0, 255, 0))
         # frame = cv2.putText(frame, f'similarity: {sim_}', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
         frame = self.chinese_pic(frame, f'相似度: {sim_}', (50, 50), (0, 255, 0))
-        return frame
+        return frame, count, srt_count
 
 
 
@@ -559,10 +569,12 @@ class PoseMonitor:
         :param color: 颜色
         :return:
         """
+        font_path = r'.\font\SimHei.ttf' 
+        abs_font_path = os.path.abspath(font_path)
         # 图像从OpenCV格式转换成PIL格式
         img_PIL = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
         # 字体包
-        font = ImageFont.truetype(r'E:\Users\13194\Desktop\Training\project-2024.7.1\project\SimHei.ttf', 40)
+        font = ImageFont.truetype(abs_font_path, 40)
         # 需要先把输出的中文字符转换成Unicode编码形式
         if not isinstance(text, str):
             text = str.decode('utf8')
